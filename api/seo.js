@@ -5,22 +5,17 @@ const client = new OpenAI({
 });
 
 export default async function handler(req, res) {
-  // Разрешаем только POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   let keyword, language;
 
-  // Пытаемся прочитать данные из разных источников
   if (req.body) {
-    // Если body это объект
     if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
       keyword = req.body.keyword;
       language = req.body.language || "en";
-    } 
-    // Если body это строка JSON
-    else if (typeof req.body === 'string') {
+    } else if (typeof req.body === 'string') {
       try {
         const parsed = JSON.parse(req.body);
         keyword = parsed.keyword;
@@ -31,7 +26,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // Проверяем query параметры (на всякий случай)
   if (!keyword && req.query.keyword) {
     keyword = req.query.keyword;
     language = req.query.language || "en";
@@ -54,9 +48,26 @@ export default async function handler(req, res) {
       messages: [
         {
           role: "system",
-          content:
-            "You are an intent-aware SEO expert. Detect search intent, generate SEO title, meta description, and 3 social hooks. Return ONLY valid JSON."
+          content: "You are an intent-aware SEO expert. Detect search intent, generate SEO title, meta description, and 3 social hooks. Return ONLY valid JSON."
         },
         {
           role: "user",
-          co
+          content: `Keyword: ${keyword}. Language: ${language}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "AI generation failed",
+      details: err.message
+    });
+  }
+}
