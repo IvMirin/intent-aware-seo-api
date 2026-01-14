@@ -10,10 +10,42 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { keyword, language = "en" } = req.body;
+  let keyword, language;
+
+  // Пытаемся прочитать данные из разных источников
+  if (req.body) {
+    // Если body это объект
+    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      keyword = req.body.keyword;
+      language = req.body.language || "en";
+    } 
+    // Если body это строка JSON
+    else if (typeof req.body === 'string') {
+      try {
+        const parsed = JSON.parse(req.body);
+        keyword = parsed.keyword;
+        language = parsed.language || "en";
+      } catch (e) {
+        // Не удалось распарсить
+      }
+    }
+  }
+
+  // Проверяем query параметры (на всякий случай)
+  if (!keyword && req.query.keyword) {
+    keyword = req.query.keyword;
+    language = req.query.language || "en";
+  }
 
   if (!keyword) {
-    return res.status(400).json({ error: "keyword is required" });
+    return res.status(400).json({ 
+      error: "keyword is required",
+      debug: {
+        bodyType: typeof req.body,
+        body: req.body,
+        query: req.query
+      }
+    });
   }
 
   try {
@@ -27,24 +59,4 @@ export default async function handler(req, res) {
         },
         {
           role: "user",
-          content: `Keyword: ${keyword}. Language: ${language}`
-        }
-      ],
-      response_format: { type: "json_object" }
-    });
-
-    const result = JSON.parse(
-      completion.choices[0].message.content
-    );
-
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "AI generation failed",
-      details: err.message
-    });
-  }
-}
+          co
